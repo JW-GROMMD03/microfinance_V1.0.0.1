@@ -1,0 +1,2363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - MicroFinance Kenya</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+            
+            --bg-color: #f8fafc;
+            --sidebar-bg: #1e293b;
+            --card-bg: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            
+            --success-bg: #d1fae5;
+            --success-text: #065f46;
+            --warning-bg: #fef3c7;
+            --warning-text: #92400e;
+            --danger-bg: #fee2e2;
+            --danger-text: #991b1b;
+            --info-bg: #dbeafe;
+            --info-text: #1e40af;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --sidebar-bg: #1e293b;
+            --card-bg: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease;
+            overflow-x: hidden;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background-color: var(--sidebar-bg);
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i {
+            font-size: 1.5rem;
+            color: var(--secondary-color);
+        }
+
+        .logo h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .toggle-sidebar {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .sidebar-user {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .user-info h4 {
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .user-role {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+            display: block;
+        }
+
+        .user-status {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .user-status.online {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .sidebar-menu {
+            flex: 1;
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .menu-section {
+            margin-bottom: 30px;
+        }
+
+        .menu-section h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 0 20px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            gap: 15px;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .menu-item.active {
+            background-color: rgba(37, 99, 235, 0.2);
+            color: white;
+            border-left-color: var(--primary-color);
+        }
+
+        .menu-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .menu-badge {
+            margin-left: auto;
+            background-color: var(--warning-color);
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .logout {
+            color: var(--danger-color);
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.online {
+            background-color: var(--secondary-color);
+            box-shadow: 0 0 10px var(--secondary-color);
+        }
+
+        .version {
+            text-align: center;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 10px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Top Header */
+        .top-header {
+            padding: 20px;
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .county-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .county-selector select {
+            padding: 8px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            font-weight: 500;
+            min-width: 250px;
+            cursor: pointer;
+        }
+
+        .last-update {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .header-btn:hover {
+            background-color: var(--bg-color);
+        }
+
+        .notification-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--danger-color);
+            color: white;
+            font-size: 0.7rem;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-left: 10px;
+        }
+
+        .action-btn {
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn.primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .action-btn.success {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Dashboard Sections */
+        .dashboard-sections {
+            padding: 20px;
+        }
+
+        .dashboard-section {
+            display: none;
+        }
+
+        .dashboard-section.active {
+            display: block;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .section-header h2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .stat-icon.total-loans {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        }
+
+        .stat-icon.total-customers {
+            background: linear-gradient(135deg, var(--secondary-color), #0d9c6e);
+        }
+
+        .stat-icon.active-staff {
+            background: linear-gradient(135deg, var(--warning-color), #d97706);
+        }
+
+        .stat-icon.total-repayment {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        }
+
+        .stat-info h3 {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-change {
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-change.positive {
+            color: var(--secondary-color);
+        }
+
+        .stat-change.negative {
+            color: var(--danger-color);
+        }
+
+        /* Charts */
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        /* Data Tables */
+        .data-table-container {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .table-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .table-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--bg-color);
+        }
+
+        .search-box input {
+            border: none;
+            background: none;
+            color: var(--text-primary);
+            width: 200px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background-color: var(--bg-color);
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table tr:hover {
+            background-color: var(--bg-color);
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+        }
+
+        .status-pending {
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+        }
+
+        .status-approved {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+        }
+
+        .status-rejected {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn-small {
+            width: 35px;
+            height: 35px;
+            border-radius: 6px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn-small.approve {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+        }
+
+        .action-btn-small.reject {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+        }
+
+        .action-btn-small:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Credit Score */
+        .credit-score {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .score-bar {
+            flex: 1;
+            height: 8px;
+            background-color: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        .score-fill.high {
+            background-color: var(--secondary-color);
+        }
+
+        .score-fill.medium {
+            background-color: var(--warning-color);
+        }
+
+        .score-fill.low {
+            background-color: var(--danger-color);
+        }
+
+        .star-rating {
+            display: flex;
+            gap: 2px;
+        }
+
+        .star-rating i {
+            color: #ffd700;
+        }
+
+        /* Modals */
+        .modal-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn.primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn.success {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn.danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 70px;
+            }
+            
+            .sidebar-header h2,
+            .user-info,
+            .menu-section h3,
+            .menu-item span,
+            .status-item span:first-child,
+            .version {
+                display: none;
+            }
+            
+            .main-content {
+                margin-left: 70px;
+            }
+            
+            .menu-item {
+                justify-content: center;
+                padding: 15px;
+            }
+            
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-left {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2>Loading Admin Dashboard</h2>
+            <p>Initializing real-time monitoring system...</p>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-coins"></i>
+                <h2>MFK Admin</h2>
+            </div>
+            <button class="toggle-sidebar" id="toggleSidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <div class="user-info">
+                <h4 id="adminName">Admin</h4>
+                <span class="user-role">Administrator</span>
+                <span class="user-status online">Online</span>
+            </div>
+        </div>
+
+        <div class="sidebar-menu">
+            <div class="menu-section">
+                <h3>DASHBOARD</h3>
+                <div class="menu-item active" data-section="overview">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Overview</span>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <h3>MANAGEMENT</h3>
+                <div class="menu-item" data-section="loans">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <span>Loan Management</span>
+                    <span class="menu-badge" id="overdueLoansCount">0</span>
+                </div>
+                <div class="menu-item" data-section="customers">
+                    <i class="fas fa-users"></i>
+                    <span>Customers</span>
+                </div>
+                <div class="menu-item" data-section="staff">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Staff & HR</span>
+                </div>
+                <div class="menu-item" data-section="approvals">
+                    <i class="fas fa-user-check"></i>
+                    <span>Approvals</span>
+                    <span class="menu-badge" id="pendingApprovalsCount">0</span>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <h3>ANALYTICS</h3>
+                <div class="menu-item" data-section="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analytics</span>
+                </div>
+                <div class="menu-item" data-section="reports">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Reports</span>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <h3>SYSTEM</h3>
+                <div class="menu-item" data-section="audit">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Audit Logs</span>
+                </div>
+                <div class="menu-item" data-section="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </div>
+                <div class="menu-item logout" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="system-status">
+                <div class="status-item">
+                    <span>WebSocket</span>
+                    <span class="status-dot online" id="wsStatus"></span>
+                </div>
+                <div class="status-item">
+                    <span>System</span>
+                    <span class="status-dot online"></span>
+                </div>
+            </div>
+            <div class="version">
+                v2.4.1
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Header -->
+        <header class="top-header">
+            <div class="header-left">
+                <div class="county-selector">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <select id="countySelect">
+                        <option value="all">All Counties (National Overview)</option>
+                    </select>
+                </div>
+                <div class="last-update">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Last updated: <span id="lastUpdateTime">Just now</span></span>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <button class="header-btn" id="notificationBtn">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="notificationCount">0</span>
+                </button>
+                <button class="header-btn" id="themeToggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <div class="quick-actions">
+                    <button class="action-btn primary" id="exportBtn">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Sections -->
+        <div class="dashboard-sections">
+            <!-- Overview Section -->
+            <section id="overviewSection" class="dashboard-section active">
+                <div class="section-header">
+                    <h2><i class="fas fa-tachometer-alt"></i> National Overview</h2>
+                    <div class="time-range">
+                        <select id="timeRange">
+                            <option value="today">Today</option>
+                            <option value="week" selected>This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="year">This Year</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon total-loans">
+                            <i class="fas fa-hand-holding-usd"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Total Active Loans</h3>
+                            <div class="stat-value" id="totalLoans">0</div>
+                            <div class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> <span id="loanChange">0%</span> from last week
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon total-customers">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Total Customers</h3>
+                            <div class="stat-value" id="totalCustomers">0</div>
+                            <div class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> <span id="customerChange">0%</span> from last week
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon active-staff">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Active Staff</h3>
+                            <div class="stat-value" id="activeStaff">0</div>
+                            <div class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> <span id="staffChange">0%</span> from last week
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon total-repayment">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Repayment Rate</h3>
+                            <div class="stat-value" id="repaymentRate">0%</div>
+                            <div class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> <span id="repaymentChange">0%</span> from last week
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Loan Disbursement Trend</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="loanTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Default Rate by County</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="defaultRateChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Loan Management Section -->
+            <section id="loansSection" class="dashboard-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-hand-holding-usd"></i> Loan Management</h2>
+                    <div class="section-actions">
+                        <button class="action-btn primary" id="addLoanBtn">
+                            <i class="fas fa-plus"></i> New Loan
+                        </button>
+                        <button class="action-btn" id="filterLoansBtn">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loans Summary -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3>Active Loans</h3>
+                            <div class="stat-value" id="activeLoansCount">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3>Overdue Loans</h3>
+                            <div class="stat-value text-danger" id="overdueLoans">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3>Defaulted Loans</h3>
+                            <div class="stat-value" id="defaultedLoans">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3>Total Value</h3>
+                            <div class="stat-value" id="totalLoanValue">KES 0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loans Table -->
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3>All Loans</h3>
+                        <div class="table-controls">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="loanSearch" placeholder="Search loans...">
+                            </div>
+                            <select id="loanStatusFilter">
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="completed">Completed</option>
+                                <option value="defaulted">Defaulted</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Loan ID</th>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Interest</th>
+                                    <th>Duration</th>
+                                    <th>Next Payment</th>
+                                    <th>Status</th>
+                                    <th>Field Officer</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="loansTableBody">
+                                <!-- Loans will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Staff Management Section -->
+            <section id="staffSection" class="dashboard-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-user-tie"></i> Staff Management</h2>
+                    <div class="section-actions">
+                        <button class="action-btn primary" id="addStaffBtn">
+                            <i class="fas fa-plus"></i> Add Staff
+                        </button>
+                    </div>
+                </div>
+
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3>All Staff Members</h3>
+                        <div class="table-controls">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="staffSearch" placeholder="Search staff...">
+                            </div>
+                            <select id="staffRoleFilter">
+                                <option value="all">All Roles</option>
+                                <option value="manager">Manager</option>
+                                <option value="finance">Finance Officer</option>
+                                <option value="field_officer">Field Officer</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Role</th>
+                                    <th>County</th>
+                                    <th>Phone</th>
+                                    <th>Status</th>
+                                    <th>Performance</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffTableBody">
+                                <!-- Staff will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Approval Requests Section -->
+            <section id="approvalsSection" class="dashboard-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-user-check"></i> Approval Requests</h2>
+                </div>
+
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3>Pending Approvals</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>County</th>
+                                    <th>Applied On</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="approvalsTableBody">
+                                <!-- Approval requests will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <div id="modalContainer" class="modal-container"></div>
+
+    <script>
+        // Kenyan counties
+        const kenyanCounties = [
+            'Mombasa', 'Kwale', 'Kilifi', 'Tana River', 'Lamu', 'Taita Taveta', 'Garissa',
+            'Wajir', 'Mandera', 'Marsabit', 'Isiolo', 'Meru', 'Tharaka Nithi', 'Embu',
+            'Kitui', 'Machakos', 'Makueni', 'Nyandarua', 'Nyeri', 'Kirinyaga', 'Muranga',
+            'Kiambu', 'Turkana', 'West Pokot', 'Samburu', 'Trans Nzoia', 'Uasin Gishu',
+            'Elgeyo Marakwet', 'Nandi', 'Baringo', 'Laikipia', 'Nakuru', 'Narok', 'Kajiado',
+            'Kericho', 'Bomet', 'Kakamega', 'Vihiga', 'Bungoma', 'Busia', 'Siaya',
+            'Kisumu', 'Homa Bay', 'Migori', 'Kisii', 'Nyamira', 'Nairobi City'
+        ];
+
+        class AdminDashboard {
+            constructor() {
+                this.currentCounty = 'all';
+                this.currentSection = 'overview';
+                this.socket = null;
+                this.charts = {};
+                this.data = {
+                    loans: [],
+                    customers: [],
+                    staff: [],
+                    approvals: [],
+                    notifications: []
+                };
+                
+                this.init();
+            }
+
+            async init() {
+                // Check authentication
+                await this.checkAuthentication();
+                
+                // Initialize components
+                this.initializeComponents();
+                
+                // Load data
+                await this.loadInitialData();
+                
+                // Initialize WebSocket
+                this.initializeWebSocket();
+                
+                // Hide loading screen
+                this.hideLoadingScreen();
+                
+                // Start real-time updates
+                this.startRealTimeUpdates();
+            }
+
+            async checkAuthentication() {
+                const session = JSON.parse(localStorage.getItem('mfk_session') || '{}');
+                const users = JSON.parse(localStorage.getItem('mfk_users') || '[]');
+                
+                // Check if user is admin
+                const user = users.find(u => u.id === session.id);
+                
+                if (!user || user.role !== 'admin' || user.status !== 'approved') {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                this.user = user;
+                this.session = session;
+                
+                // Update UI with user info
+                document.getElementById('adminName').textContent = user.fullName;
+            }
+
+            initializeComponents() {
+                this.setupEventListeners();
+                this.populateCounties();
+                this.initializeCharts();
+            }
+
+            setupEventListeners() {
+                // Sidebar navigation
+                document.querySelectorAll('.menu-item').forEach(item => {
+                    if (!item.classList.contains('logout')) {
+                        item.addEventListener('click', (e) => {
+                            const section = item.getAttribute('data-section');
+                            this.switchSection(section);
+                            
+                            // Update active state
+                            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+                            item.classList.add('active');
+                        });
+                    }
+                });
+
+                // Logout
+                document.getElementById('logoutBtn').addEventListener('click', () => {
+                    this.logout();
+                });
+
+                // County selector
+                document.getElementById('countySelect').addEventListener('change', (e) => {
+                    this.currentCounty = e.target.value;
+                    this.onCountyChange();
+                });
+
+                // Theme toggle
+                document.getElementById('themeToggle').addEventListener('click', () => {
+                    this.toggleTheme();
+                });
+
+                // Export
+                document.getElementById('exportBtn').addEventListener('click', () => {
+                    this.exportData();
+                });
+
+                // Add loan button
+                document.getElementById('addLoanBtn')?.addEventListener('click', () => {
+                    this.showAddLoanModal();
+                });
+
+                // Add staff button
+                document.getElementById('addStaffBtn')?.addEventListener('click', () => {
+                    this.showAddStaffModal();
+                });
+
+                // Search functionality
+                document.getElementById('loanSearch')?.addEventListener('input', (e) => {
+                    this.filterLoans(e.target.value);
+                });
+
+                document.getElementById('staffSearch')?.addEventListener('input', (e) => {
+                    this.filterStaff(e.target.value);
+                });
+
+                // Status filters
+                document.getElementById('loanStatusFilter')?.addEventListener('change', (e) => {
+                    this.filterLoansByStatus(e.target.value);
+                });
+
+                document.getElementById('staffRoleFilter')?.addEventListener('change', (e) => {
+                    this.filterStaffByRole(e.target.value);
+                });
+            }
+
+            populateCounties() {
+                const select = document.getElementById('countySelect');
+                select.innerHTML = '<option value="all">All Counties (National Overview)</option>';
+                
+                kenyanCounties.forEach(county => {
+                    const option = document.createElement('option');
+                    option.value = county.toLowerCase().replace(/ /g, '-');
+                    option.textContent = county;
+                    select.appendChild(option);
+                });
+            }
+
+            async loadInitialData() {
+                try {
+                    // Load mock data
+                    this.data.loans = this.generateMockLoans();
+                    this.data.customers = this.generateMockCustomers();
+                    this.data.staff = this.generateMockStaff();
+                    this.data.approvals = this.getPendingApprovals();
+                    
+                    // Update UI
+                    this.updateDashboardStats();
+                    this.renderLoansTable();
+                    this.renderStaffTable();
+                    this.renderApprovalsTable();
+                    
+                    // Update counts
+                    this.updateNotificationCounts();
+                    
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    this.showAlert('Failed to load data', 'error');
+                }
+            }
+
+            generateMockLoans() {
+                const loans = [];
+                const statuses = ['active', 'overdue', 'completed', 'defaulted'];
+                
+                for (let i = 1; i <= 50; i++) {
+                    const county = kenyanCounties[Math.floor(Math.random() * kenyanCounties.length)];
+                    const amount = Math.floor(Math.random() * 500000) + 50000;
+                    const interestRate = (Math.random() * 5 + 10).toFixed(1);
+                    
+                    loans.push({
+                        id: `LOAN-${String(i).padStart(5, '0')}`,
+                        customerName: `Customer ${i}`,
+                        customerId: `CUST-${String(i).padStart(5, '0')}`,
+                        amount: amount,
+                        interestRate: interestRate,
+                        duration: `${Math.floor(Math.random() * 24) + 6} months`,
+                        nextPayment: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+                        status: statuses[Math.floor(Math.random() * statuses.length)],
+                        fieldOfficer: `Officer ${Math.floor(Math.random() * 20) + 1}`,
+                        county: county.toLowerCase().replace(/ /g, '-'),
+                        issueDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+                        createdAt: new Date().toISOString()
+                    });
+                }
+                return loans;
+            }
+
+            generateMockCustomers() {
+                const customers = [];
+                for (let i = 1; i <= 100; i++) {
+                    const county = kenyanCounties[Math.floor(Math.random() * kenyanCounties.length)];
+                    customers.push({
+                        id: `CUST-${String(i).padStart(5, '0')}`,
+                        fullName: `Customer ${i}`,
+                        nationalId: `${Math.floor(Math.random() * 90000000) + 10000000}`,
+                        phone: `+2547${Math.floor(Math.random() * 9000000) + 1000000}`,
+                        county: county.toLowerCase().replace(/ /g, '-'),
+                        subcounty: `Subcounty ${Math.floor(Math.random() * 10) + 1}`,
+                        village: `Village ${Math.floor(Math.random() * 20) + 1}`,
+                        creditScore: Math.floor(Math.random() * 300) + 500,
+                        monthlyIncome: Math.floor(Math.random() * 100000) + 20000,
+                        status: 'active'
+                    });
+                }
+                return customers;
+            }
+
+            generateMockStaff() {
+                const staff = [];
+                const roles = ['manager', 'finance', 'field_officer'];
+                
+                for (let i = 1; i <= 20; i++) {
+                    const role = roles[Math.floor(Math.random() * roles.length)];
+                    const county = kenyanCounties[Math.floor(Math.random() * kenyanCounties.length)];
+                    
+                    staff.push({
+                        id: `STAFF-${String(i).padStart(5, '0')}`,
+                        fullName: `Staff Member ${i}`,
+                        email: `staff${i}@microfinance.co.ke`,
+                        phone: `+2547${Math.floor(Math.random() * 9000000) + 1000000}`,
+                        role: role,
+                        county: county.toLowerCase().replace(/ /g, '-'),
+                        status: 'active',
+                        performanceScore: Math.floor(Math.random() * 100),
+                        joinedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toLocaleDateString()
+                    });
+                }
+                return staff;
+            }
+
+            getPendingApprovals() {
+                const users = JSON.parse(localStorage.getItem('mfk_users') || '[]');
+                return users.filter(user => user.status === 'pending');
+            }
+
+            updateDashboardStats() {
+                // Calculate stats
+                const totalLoans = this.data.loans.length;
+                const activeLoans = this.data.loans.filter(l => l.status === 'active').length;
+                const overdueLoans = this.data.loans.filter(l => l.status === 'overdue').length;
+                const defaultedLoans = this.data.loans.filter(l => l.status === 'defaulted').length;
+                const totalCustomers = this.data.customers.length;
+                const activeStaff = this.data.staff.filter(s => s.status === 'active').length;
+                
+                // Calculate total loan value
+                const totalLoanValue = this.data.loans.reduce((sum, loan) => sum + loan.amount, 0);
+                
+                // Calculate repayment rate (mock)
+                const totalCompleted = this.data.loans.filter(l => l.status === 'completed').length;
+                const repaymentRate = totalLoans > 0 ? Math.round((totalCompleted / totalLoans) * 100) : 0;
+                
+                // Update UI
+                document.getElementById('totalLoans').textContent = totalLoans.toLocaleString();
+                document.getElementById('activeLoansCount').textContent = activeLoans.toLocaleString();
+                document.getElementById('overdueLoans').textContent = overdueLoans.toLocaleString();
+                document.getElementById('defaultedLoans').textContent = defaultedLoans.toLocaleString();
+                document.getElementById('totalLoanValue').textContent = `KES ${totalLoanValue.toLocaleString()}`;
+                document.getElementById('totalCustomers').textContent = totalCustomers.toLocaleString();
+                document.getElementById('activeStaff').textContent = activeStaff.toLocaleString();
+                document.getElementById('repaymentRate').textContent = `${repaymentRate}%`;
+                
+                // Update badge counts
+                document.getElementById('overdueLoansCount').textContent = overdueLoans;
+                document.getElementById('pendingApprovalsCount').textContent = this.data.approvals.length;
+            }
+
+            renderLoansTable() {
+                const tableBody = document.getElementById('loansTableBody');
+                if (!tableBody) return;
+                
+                tableBody.innerHTML = '';
+                
+                const filteredLoans = this.filterLoansByCounty(this.data.loans);
+                
+                filteredLoans.forEach(loan => {
+                    const row = document.createElement('tr');
+                    
+                    // Determine status badge
+                    let statusClass = '';
+                    let statusText = '';
+                    switch(loan.status) {
+                        case 'active':
+                            statusClass = 'status-active';
+                            statusText = 'Active';
+                            break;
+                        case 'overdue':
+                            statusClass = 'status-overdue';
+                            statusText = 'Overdue';
+                            break;
+                        case 'defaulted':
+                            statusClass = 'status-defaulted';
+                            statusText = 'Defaulted';
+                            break;
+                        case 'completed':
+                            statusClass = 'status-completed';
+                            statusText = 'Completed';
+                            break;
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${loan.id}</td>
+                        <td>${loan.customerName}</td>
+                        <td>KES ${loan.amount.toLocaleString()}</td>
+                        <td>${loan.interestRate}%</td>
+                        <td>${loan.duration}</td>
+                        <td>${loan.nextPayment}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${loan.fieldOfficer}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="action-btn-small approve" onclick="dashboard.viewLoan('${loan.id}')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="action-btn-small" onclick="dashboard.editLoan('${loan.id}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn-small reject" onclick="dashboard.deleteLoan('${loan.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+
+            renderStaffTable() {
+                const tableBody = document.getElementById('staffTableBody');
+                if (!tableBody) return;
+                
+                tableBody.innerHTML = '';
+                
+                this.data.staff.forEach(staff => {
+                    const row = document.createElement('tr');
+                    
+                    // Determine role display
+                    let roleDisplay = '';
+                    switch(staff.role) {
+                        case 'manager':
+                            roleDisplay = 'County Manager';
+                            break;
+                        case 'finance':
+                            roleDisplay = 'Finance Officer';
+                            break;
+                        case 'field_officer':
+                            roleDisplay = 'Field Officer';
+                            break;
+                    }
+                    
+                    // Performance stars
+                    const score = staff.performanceScore || 0;
+                    const stars = Math.ceil(score / 20); // 5-star scale
+                    const starHtml = '<i class="fas fa-star"></i>'.repeat(stars);
+                    
+                    row.innerHTML = `
+                        <td>${staff.fullName}</td>
+                        <td>${roleDisplay}</td>
+                        <td>${staff.county}</td>
+                        <td>${staff.phone}</td>
+                        <td><span class="status-badge status-active">Active</span></td>
+                        <td>
+                            <div class="star-rating">${starHtml}</div>
+                            <div class="credit-score">
+                                <div class="score-bar">
+                                    <div class="score-fill ${score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low'}" 
+                                         style="width: ${score}%"></div>
+                                </div>
+                                <span>${score}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="action-btn-small" onclick="dashboard.editStaff('${staff.id}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn-small reject" onclick="dashboard.suspendStaff('${staff.id}')">
+                                    <i class="fas fa-user-slash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+
+            renderApprovalsTable() {
+                const tableBody = document.getElementById('approvalsTableBody');
+                if (!tableBody) return;
+                
+                tableBody.innerHTML = '';
+                
+                this.data.approvals.forEach(user => {
+                    const row = document.createElement('tr');
+                    
+                    // Determine role display
+                    let roleDisplay = '';
+                    switch(user.role) {
+                        case 'manager':
+                            roleDisplay = 'County Manager';
+                            break;
+                        case 'finance':
+                            roleDisplay = 'Finance Officer';
+                            break;
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${user.fullName}</td>
+                        <td>${user.email}</td>
+                        <td>${roleDisplay}</td>
+                        <td>${user.county || 'N/A'}</td>
+                        <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                        <td><span class="status-badge status-pending">Pending</span></td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="action-btn-small approve" onclick="dashboard.approveUser('${user.id}')">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="action-btn-small reject" onclick="dashboard.rejectUser('${user.id}')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+
+            filterLoansByCounty(loans) {
+                if (this.currentCounty === 'all') return loans;
+                return loans.filter(loan => loan.county === this.currentCounty);
+            }
+
+            filterLoans(searchTerm = '') {
+                const filtered = this.data.loans.filter(loan => 
+                    loan.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    loan.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    loan.fieldOfficer.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+                
+                this.renderFilteredLoans(filtered);
+            }
+
+            filterLoansByStatus(status) {
+                if (status === 'all') {
+                    this.renderLoansTable();
+                    return;
+                }
+                
+                const filtered = this.data.loans.filter(loan => loan.status === status);
+                this.renderFilteredLoans(filtered);
+            }
+
+            filterStaff(searchTerm = '') {
+                const filtered = this.data.staff.filter(staff => 
+                    staff.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    staff.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    staff.phone.includes(searchTerm)
+                );
+                
+                this.renderFilteredStaff(filtered);
+            }
+
+            filterStaffByRole(role) {
+                if (role === 'all') {
+                    this.renderStaffTable();
+                    return;
+                }
+                
+                const filtered = this.data.staff.filter(staff => staff.role === role);
+                this.renderFilteredStaff(filtered);
+            }
+
+            renderFilteredLoans(loans) {
+                const tableBody = document.getElementById('loansTableBody');
+                if (!tableBody) return;
+                
+                tableBody.innerHTML = '';
+                
+                const filteredByCounty = this.filterLoansByCounty(loans);
+                
+                filteredByCounty.forEach(loan => {
+                    const row = document.createElement('tr');
+                    // ... (same as renderLoansTable)
+                    tableBody.appendChild(row);
+                });
+            }
+
+            renderFilteredStaff(staff) {
+                const tableBody = document.getElementById('staffTableBody');
+                if (!tableBody) return;
+                
+                tableBody.innerHTML = '';
+                
+                staff.forEach(staff => {
+                    const row = document.createElement('tr');
+                    // ... (same as renderStaffTable)
+                    tableBody.appendChild(row);
+                });
+            }
+
+            initializeCharts() {
+                // Loan Trend Chart
+                const loanTrendCtx = document.getElementById('loanTrendChart').getContext('2d');
+                this.charts.loanTrend = new Chart(loanTrendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Loan Disbursement',
+                            data: [12000000, 19000000, 15000000, 25000000, 22000000, 30000000],
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true
+                            }
+                        }
+                    }
+                });
+
+                // Default Rate Chart
+                const defaultRateCtx = document.getElementById('defaultRateChart').getContext('2d');
+                this.charts.defaultRate = new Chart(defaultRateCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Kisii'],
+                        datasets: [{
+                            label: 'Default Rate (%)',
+                            data: [2.3, 1.8, 3.2, 2.7, 1.5],
+                            backgroundColor: [
+                                'rgba(239, 68, 68, 0.7)',
+                                'rgba(245, 158, 11, 0.7)',
+                                'rgba(16, 185, 129, 0.7)',
+                                'rgba(59, 130, 246, 0.7)',
+                                'rgba(139, 92, 246, 0.7)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+
+            initializeWebSocket() {
+                // Simulate WebSocket connection
+                this.socket = {
+                    connected: true,
+                    emit: (event, data) => {
+                        console.log('WebSocket emit:', event, data);
+                    },
+                    on: (event, callback) => {
+                        console.log('WebSocket listener added:', event);
+                    }
+                };
+
+                // Update connection status
+                this.updateConnectionStatus(true);
+
+                // Simulate real-time updates
+                setInterval(() => {
+                    this.simulateRealTimeUpdate();
+                }, 30000);
+            }
+
+            updateConnectionStatus(connected) {
+                const wsStatus = document.getElementById('wsStatus');
+                if (wsStatus) {
+                    wsStatus.style.backgroundColor = connected ? '#10b981' : '#ef4444';
+                    wsStatus.style.boxShadow = connected ? '0 0 10px #10b981' : 'none';
+                }
+            }
+
+            simulateRealTimeUpdate() {
+                // Randomly update loan status
+                if (this.data.loans.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * this.data.loans.length);
+                    const loan = this.data.loans[randomIndex];
+                    
+                    // Sometimes mark as overdue
+                    if (loan.status === 'active' && Math.random() > 0.8) {
+                        loan.status = 'overdue';
+                        this.addNotification({
+                            type: 'warning',
+                            title: 'Loan Overdue',
+                            message: `Loan ${loan.id} is now overdue`,
+                            timestamp: new Date()
+                        });
+                        
+                        this.updateDashboardStats();
+                        if (this.currentSection === 'loans') {
+                            this.renderLoansTable();
+                        }
+                    }
+                }
+            }
+
+            addNotification(notification) {
+                this.data.notifications.unshift(notification);
+                this.updateNotificationCounts();
+            }
+
+            updateNotificationCounts() {
+                const notificationCount = this.data.notifications.length;
+                document.getElementById('notificationCount').textContent = notificationCount;
+                document.getElementById('notificationCount').style.display = notificationCount > 0 ? 'flex' : 'none';
+            }
+
+            switchSection(section) {
+                // Hide all sections
+                document.querySelectorAll('.dashboard-section').forEach(s => {
+                    s.classList.remove('active');
+                });
+                
+                // Show selected section
+                const sectionEl = document.getElementById(`${section}Section`);
+                if (sectionEl) {
+                    sectionEl.classList.add('active');
+                    this.currentSection = section;
+                }
+            }
+
+            onCountyChange() {
+                // Update data based on selected county
+                this.updateDashboardStats();
+                
+                if (this.currentSection === 'loans') {
+                    this.renderLoansTable();
+                } else if (this.currentSection === 'staff') {
+                    this.renderStaffTable();
+                }
+                
+                // Update charts
+                this.updateCharts();
+                
+                this.logActivity('county_change', `Switched to ${this.currentCounty} county view`);
+            }
+
+            toggleTheme() {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                
+                const icon = document.querySelector('#themeToggle i');
+                icon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+
+            exportData() {
+                const data = {
+                    loans: this.data.loans,
+                    customers: this.data.customers,
+                    staff: this.data.staff,
+                    exportDate: new Date().toISOString(),
+                    exportedBy: this.user.fullName
+                };
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `microfinance-export-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.showAlert('Data exported successfully', 'success');
+                this.logActivity('export', 'Exported system data');
+            }
+
+            showAddLoanModal() {
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-header">
+                        <h3>Add New Loan</h3>
+                        <button class="modal-close" onclick="dashboard.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addLoanForm">
+                            <div class="form-group">
+                                <label>Customer</label>
+                                <select id="customerSelect" required>
+                                    <option value="">Select Customer</option>
+                                    ${this.data.customers.map(c => `<option value="${c.id}">${c.fullName}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Loan Amount (KES)</label>
+                                <input type="number" id="loanAmount" required min="5000" step="1000">
+                            </div>
+                            <div class="form-group">
+                                <label>Interest Rate (%)</label>
+                                <input type="number" id="interestRate" required min="1" max="30" step="0.1" value="12.5">
+                            </div>
+                            <div class="form-group">
+                                <label>Duration (months)</label>
+                                <input type="number" id="loanDuration" required min="3" max="60" value="12">
+                            </div>
+                            <div class="form-group">
+                                <label>Field Officer</label>
+                                <select id="fieldOfficer" required>
+                                    <option value="">Select Field Officer</option>
+                                    ${this.data.staff.filter(s => s.role === 'field_officer').map(s => `<option value="${s.id}">${s.fullName}</option>`).join('')}
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" onclick="dashboard.closeModal()">Cancel</button>
+                        <button class="btn primary" onclick="dashboard.submitNewLoan()">Create Loan</button>
+                    </div>
+                `;
+                
+                document.getElementById('modalContainer').appendChild(modal);
+                document.getElementById('modalContainer').style.display = 'flex';
+            }
+
+            showAddStaffModal() {
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-header">
+                        <h3>Add New Staff</h3>
+                        <button class="modal-close" onclick="dashboard.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addStaffForm">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" id="staffName" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="staffEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="tel" id="staffPhone" required pattern="^\+2547\d{8}$">
+                            </div>
+                            <div class="form-group">
+                                <label>Role</label>
+                                <select id="staffRole" required>
+                                    <option value="">Select Role</option>
+                                    <option value="manager">County Manager</option>
+                                    <option value="finance">Finance Officer</option>
+                                    <option value="field_officer">Field Officer</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>County</label>
+                                <select id="staffCounty" required>
+                                    <option value="">Select County</option>
+                                    ${kenyanCounties.map(c => `<option value="${c.toLowerCase().replace(/ /g, '-')}">${c}</option>`).join('')}
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" onclick="dashboard.closeModal()">Cancel</button>
+                        <button class="btn primary" onclick="dashboard.submitNewStaff()">Add Staff</button>
+                    </div>
+                `;
+                
+                document.getElementById('modalContainer').appendChild(modal);
+                document.getElementById('modalContainer').style.display = 'flex';
+            }
+
+            closeModal() {
+                const container = document.getElementById('modalContainer');
+                container.style.display = 'none';
+                container.innerHTML = '';
+            }
+
+            submitNewLoan() {
+                // Get form values
+                const customerId = document.getElementById('customerSelect').value;
+                const amount = parseFloat(document.getElementById('loanAmount').value);
+                const interestRate = parseFloat(document.getElementById('interestRate').value);
+                const duration = parseInt(document.getElementById('loanDuration').value);
+                const fieldOfficerId = document.getElementById('fieldOfficer').value;
+                
+                // Find customer
+                const customer = this.data.customers.find(c => c.id === customerId);
+                if (!customer) {
+                    this.showAlert('Please select a customer', 'error');
+                    return;
+                }
+                
+                // Find field officer
+                const fieldOfficer = this.data.staff.find(s => s.id === fieldOfficerId);
+                if (!fieldOfficer) {
+                    this.showAlert('Please select a field officer', 'error');
+                    return;
+                }
+                
+                // Create new loan
+                const newLoan = {
+                    id: `LOAN-${String(this.data.loans.length + 1).padStart(5, '0')}`,
+                    customerName: customer.fullName,
+                    customerId: customer.id,
+                    amount: amount,
+                    interestRate: interestRate,
+                    duration: `${duration} months`,
+                    nextPayment: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+                    status: 'active',
+                    fieldOfficer: fieldOfficer.fullName,
+                    county: customer.county,
+                    issueDate: new Date().toLocaleDateString(),
+                    createdAt: new Date().toISOString()
+                };
+                
+                // Add to data
+                this.data.loans.push(newLoan);
+                
+                // Update UI
+                this.updateDashboardStats();
+                if (this.currentSection === 'loans') {
+                    this.renderLoansTable();
+                }
+                
+                // Close modal
+                this.closeModal();
+                
+                // Show success message
+                this.showAlert('Loan created successfully', 'success');
+                
+                // Log activity
+                this.logActivity('loan_created', `Created new loan ${newLoan.id} for ${customer.fullName}`);
+            }
+
+            submitNewStaff() {
+                // Get form values
+                const name = document.getElementById('staffName').value.trim();
+                const email = document.getElementById('staffEmail').value.trim();
+                const phone = document.getElementById('staffPhone').value.trim();
+                const role = document.getElementById('staffRole').value;
+                const county = document.getElementById('staffCounty').value;
+                
+                // Validation
+                if (!name || !email || !phone || !role || !county) {
+                    this.showAlert('Please fill all fields', 'error');
+                    return;
+                }
+                
+                // Create new staff
+                const newStaff = {
+                    id: `STAFF-${String(this.data.staff.length + 1).padStart(5, '0')}`,
+                    fullName: name,
+                    email: email,
+                    phone: phone,
+                    role: role,
+                    county: county,
+                    status: 'active',
+                    performanceScore: Math.floor(Math.random() * 100),
+                    joinedDate: new Date().toISOString()
+                };
+                
+                // Add to data
+                this.data.staff.push(newStaff);
+                
+                // Update UI
+                this.updateDashboardStats();
+                if (this.currentSection === 'staff') {
+                    this.renderStaffTable();
+                }
+                
+                // Close modal
+                this.closeModal();
+                
+                // Show success message
+                this.showAlert('Staff member added successfully', 'success');
+                
+                // Log activity
+                this.logActivity('staff_added', `Added new staff member: ${name}`);
+            }
+
+            approveUser(userId) {
+                const users = JSON.parse(localStorage.getItem('mfk_users') || '[]');
+                const userIndex = users.findIndex(u => u.id === userId);
+                
+                if (userIndex !== -1) {
+                    users[userIndex].status = 'approved';
+                    localStorage.setItem('mfk_users', JSON.stringify(users));
+                    
+                    // Update approvals list
+                    this.data.approvals = this.getPendingApprovals();
+                    this.renderApprovalsTable();
+                    this.updateDashboardStats();
+                    
+                    this.showAlert('User approved successfully', 'success');
+                    this.logActivity('user_approved', `Approved user: ${users[userIndex].fullName}`);
+                }
+            }
+
+            rejectUser(userId) {
+                const users = JSON.parse(localStorage.getItem('mfk_users') || '[]');
+                const userIndex = users.findIndex(u => u.id === userId);
+                
+                if (userIndex !== -1) {
+                    users[userIndex].status = 'rejected';
+                    localStorage.setItem('mfk_users', JSON.stringify(users));
+                    
+                    // Update approvals list
+                    this.data.approvals = this.getPendingApprovals();
+                    this.renderApprovalsTable();
+                    
+                    this.showAlert('User rejected', 'info');
+                    this.logActivity('user_rejected', `Rejected user: ${users[userIndex].fullName}`);
+                }
+            }
+
+            viewLoan(loanId) {
+                const loan = this.data.loans.find(l => l.id === loanId);
+                if (loan) {
+                    this.showLoanDetailsModal(loan);
+                }
+            }
+
+            editLoan(loanId) {
+                const loan = this.data.loans.find(l => l.id === loanId);
+                if (loan) {
+                    this.showEditLoanModal(loan);
+                }
+            }
+
+            deleteLoan(loanId) {
+                if (confirm(`Are you sure you want to delete loan ${loanId}? This action cannot be undone.`)) {
+                    this.data.loans = this.data.loans.filter(l => l.id !== loanId);
+                    this.updateDashboardStats();
+                    this.renderLoansTable();
+                    this.showAlert(`Loan ${loanId} deleted`, 'success');
+                    this.logActivity('loan_deleted', `Deleted loan ${loanId}`);
+                }
+            }
+
+            editStaff(staffId) {
+                const staff = this.data.staff.find(s => s.id === staffId);
+                if (staff) {
+                    this.showEditStaffModal(staff);
+                }
+            }
+
+            suspendStaff(staffId) {
+                if (confirm('Are you sure you want to suspend this staff member?')) {
+                    const staff = this.data.staff.find(s => s.id === staffId);
+                    if (staff) {
+                        staff.status = 'suspended';
+                        this.renderStaffTable();
+                        this.showAlert(`Staff ${staff.fullName} suspended`, 'warning');
+                        this.logActivity('staff_suspended', `Suspended staff: ${staff.fullName}`);
+                    }
+                }
+            }
+
+            showAlert(message, type = 'info') {
+                // Create alert element
+                const alert = document.createElement('div');
+                alert.className = `alert alert-${type}`;
+                alert.innerHTML = `
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                `;
+
+                // Style and position
+                Object.assign(alert.style, {
+                    position: 'fixed',
+                    top: '20px',
+                    right: '20px',
+                    padding: '15px 20px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    zIndex: '1000',
+                    color: 'white',
+                    minWidth: '300px',
+                    boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
+                    animation: 'slideIn 0.3s ease'
+                });
+
+                if (type === 'success') {
+                    alert.style.backgroundColor = '#10b981';
+                } else if (type === 'error') {
+                    alert.style.backgroundColor = '#ef4444';
+                } else if (type === 'warning') {
+                    alert.style.backgroundColor = '#f59e0b';
+                } else {
+                    alert.style.backgroundColor = '#3b82f6';
+                }
+
+                document.body.appendChild(alert);
+
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    alert.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => alert.remove(), 300);
+                }, 5000);
+            }
+
+            logActivity(action, details) {
+                const activities = JSON.parse(localStorage.getItem('mfk_activities') || '[]');
+                activities.push({
+                    timestamp: new Date().toISOString(),
+                    action,
+                    details,
+                    user: this.user.fullName,
+                    role: 'admin'
+                });
+                localStorage.setItem('mfk_activities', JSON.stringify(activities.slice(-1000)));
+            }
+
+            hideLoadingScreen() {
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingScreen.style.display = 'none';
+                    }, 300);
+                }
+            }
+
+            logout() {
+                // Clear session
+                localStorage.removeItem('mfk_session');
+                
+                // Redirect to login
+                window.location.href = 'login.html';
+            }
+
+            startRealTimeUpdates() {
+                // Update last update time
+                setInterval(() => {
+                    document.getElementById('lastUpdateTime').textContent = 'Just now';
+                }, 60000);
+            }
+
+            updateCharts() {
+                // Update charts based on selected county
+                if (this.charts.loanTrend && this.charts.defaultRate) {
+                    // In a real implementation, update chart data based on county
+                    this.charts.loanTrend.update();
+                    this.charts.defaultRate.update();
+                }
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if user is authenticated
+            const session = JSON.parse(localStorage.getItem('mfk_session') || '{}');
+            if (!session.id) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            window.dashboard = new AdminDashboard();
+        });
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+            
+            .alert {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                z-index: 1000;
+                color: white;
+                min-width: 300px;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            }
+            
+            .text-danger {
+                color: #ef4444 !important;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
